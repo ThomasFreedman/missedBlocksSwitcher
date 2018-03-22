@@ -19,6 +19,7 @@ WLET    = HOME + ".local/share/bitshares/bitshares.sqlite"
 LOGR    = HOME + "switcher.log"
 FMT1    = "%(asctime)s %(message)s"     # Format for logging: template
 FMT2    = "%m/%d/%Y %H:%M:%S"           # Format for logging: date/time
+WURL    = ""                            # WITNESS PROPOSAL URL
 ACNT    = ""                            # WITNESS ACCOUNT NAME HERE
 PASS    = ""                            # WALLET PASSWORD FOR SQLite WALLET
 PKEY    = ""                            # PRIVATE ACTV KEY FOR WITNESS ACCOUNT
