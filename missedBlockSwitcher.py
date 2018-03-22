@@ -140,13 +140,16 @@ def openWallet(credentials):
             API.wallet.unlock(pw)
         except:
             print("A wallet exists but the password won't unlock it.")
-            prompt = "Create a new wallet with the password you entered (y/n)?"
-            if input(prompt) == 'y':
-                 print("\nSorry, no way currently to remove old wallet state.")
-                 print("You will need to manage the wallet externally.")
-                 print("Alternatively you can delete %s and run this again." % WLET)
-#                API.wallet.wipe()  # New in dev branch, but may not work here
-                 exit(-1)  # Remove when wipe() removes 'wallet exists' state
+            prompt= "Create a new wallet with the password you entered (y/n)?"
+            if input(prompt).lower() == 'y':
+                 doit = input("Are you REALLY sure?") # Get confirmation first
+                 if doit.lower() == 'y':
+                     # Should backup old wallet - copy SQLite file?
+                     print("\nSorry, I can't remove old wallet state now.")
+                     print("You will need to manage the wallet externally.")
+                     print("Instead delete %s and run this again." % WLET)
+#                    API.wallet.wipe(sure=True)  # May not work yet
+                     exit(-1)  # Fix this when wipe() clears 'wallet exists'
             else:
                 print("Ok, sorry it didn't work out. Bye!")
                 exit(-1)
