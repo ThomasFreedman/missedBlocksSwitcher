@@ -169,8 +169,7 @@ def openWallet(credentials):
 
 
 # Get witness account name if not defined above in constants
-def getWitnessAccountName():
-    name = ""
+def getWitnessAccountName(name):
     while not name:
         name = input("Please enter your witness account name: ")
         try:
@@ -197,7 +196,7 @@ if __name__ == "__main__":
     # Update these if user didn't define in constants
     PASS  = credentials['PASS']     # Wallet password
     PKEY  = credentials['PKEY']     # Witness private key
-    ACNT = getWitnessAccountName()  # Can't get from priv key stored in wallet
+    ACNT  = getWitnessAccountName(ACNT)  # Can't get from private key in wallet
 
     # Set nextKey index based on signing key in use right now
     status = Witness(ACNT)
