@@ -66,8 +66,8 @@ def checkWitness():
     global startMisses,nextKey,previousMisses,loopCounter,counterOnLastMiss
 
     status = Witness(ACNT)
-    currentKey = status['signing_key']
     missed = status['total_missed']
+    currentKey = status['signing_key']
 
     # Monitoring a fresh witness, so reset all "static" variables
     if startMisses == -1:
