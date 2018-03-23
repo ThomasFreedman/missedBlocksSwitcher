@@ -102,7 +102,7 @@ def checkWitness(args):
             startMisses = -1
 
     loopCounter += 1
-    return (startMisses,loopCounter,counterOnLastMiss,previousMisses,nextKey)
+    return (nextKey,startMisses,counterOnLastMiss,previousMisses,loopCounter)
 
 
 #
