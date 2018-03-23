@@ -16,7 +16,7 @@ from bitshares.witness import Witness
 # Constants (User will be prompted for ACNT, PASS and PKEY if left empty)
 HOME    = "/home/<account>/"            # CHANGE TO ACCOUNT THIS RUNS UNDER
 WLET    = HOME + ".local/share/bitshares/bitshares.sqlite"
-LOGR    = HOME + "switcher.log"         # LOCATION OF LOG FILE
+LOGR    = HOME + "switcher.log"         # LOCATION OF LOG FILES
 FMT1    = "%(asctime)s %(message)s"     # Format for logging: template
 FMT2    = "%m/%d/%Y %H:%M:%S"           # Format for logging: date/time
 WURL    = ""                            # WITNESS PROPOSAL URL
@@ -47,21 +47,35 @@ WITNESS_KEYS = [ "BTS1...",
 API = BitShares(API_NODES, nobroadcast=False)
 # set_shared_bitshares_instance(API)       # Not sure what this could be for
 
+global startMisses, nextKey, previousMisses, loopCounter, counterOnLastMiss
 ##############################################################################
 #              End of constants and global variable definitions              #
 ##############################################################################
 
 # Check how many blocks have been missed and switch signing keys if required
-def checkWitness(args):
-    (nextKey,startMisses,counterOnLastMiss,previousMisses,loopCounter) = args
+#
+# There is no explicit facility in Python for true local static variables.
+# All methods require a prefix or greater indentation if a class structure
+# is used. However the only way to fully protect and encapsulate variables
+# is within a class.  I  am using globals mainly to avoid the ugliness and
+# to simplify the initialization, as well as bringing all of it except the
+# the following line back within this function.
+startMisses = -1
+def checkWitness():
+    # Define and initialize the "static" variables we need to persist
+    global startMisses,nextKey,previousMisses,loopCounter,counterOnLastMiss
 
     status = Witness(ACNT)
     currentKey = status['signing_key']
     missed = status['total_missed']
 
+    # Monitoring a fresh witness, so reset all "static" variables
     if startMisses == -1:
         startMisses = previousMisses = missed
-        counterOnLastMiss = loopCounter
+        counterOnLastMiss = loopCounter = 0
+        for key in range(len(WITNESS_KEYS)):
+            if status['signing_key'] == WITNESS_KEYS[key]:
+                nextKey = key
 
     print("\r%d samples, missed=%d(%d), key=%.16s..." %
         (loopCounter, missed, counterOnLastMiss, currentKey), end='')
@@ -102,7 +116,7 @@ def checkWitness(args):
             startMisses = -1
 
     loopCounter += 1
-    return (nextKey,startMisses,counterOnLastMiss,previousMisses,loopCounter)
+
 
 
 #
@@ -201,20 +215,10 @@ if __name__ == "__main__":
     PKEY  = credentials['PKEY']         # Witness private key
     ACNT  = getWitnessAccountName(ACNT) # Can't get from private key in wallet
 
-    # Set nextKey index based on signing key in use right now
-    status = Witness(ACNT)
-    for key in range(len(WITNESS_KEYS)):
-        if status['signing_key'] == WITNESS_KEYS[key]:
-            nextKey = key
-
-    startMisses = -1 # Set to -1 to reset / init
-    previousMisses = status['total_missed']
-    loopCounter = counterOnLastMiss = 0    # Initialize counters
-    args = (nextKey,startMisses,counterOnLastMiss,previousMisses,loopCounter)
-
     logging.info("Starting missed block monitoring for " + ACNT)
     while True:
-        args = checkWitness(args)
-#        logging.info("nK=%d sM=%d colm=%d pM%d lC=%d" % args)
+        checkWitness()
+#       logging.info("nK=%d sM=%d colm=%d pM%d lC=%d" %
+#           (nextKey,startMisses,counterOnLastMiss,previousMisses,loopCounter))
         sys.stdout.flush()
         time.sleep(FREQ)
