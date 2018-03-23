@@ -75,7 +75,7 @@ def checkWitness():
         counterOnLastMiss = loopCounter = 0
         for key in range(len(WITNESS_KEYS)):
             if status['signing_key'] == WITNESS_KEYS[key]:
-                nextKey = key
+                nextKey = (key + 1) % len(WITNESS_KEYS)
 
     print("\r%d samples, missed=%d(%d), key=%.16s..." %
         (loopCounter, missed, counterOnLastMiss, currentKey), end='')
