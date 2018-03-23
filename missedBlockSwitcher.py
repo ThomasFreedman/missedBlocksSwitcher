@@ -16,7 +16,7 @@ from bitshares.witness import Witness
 # Constants (User will be prompted for ACNT, PASS and PKEY if left empty)
 HOME    = "/home/<account>/"            # CHANGE TO ACCOUNT THIS RUNS UNDER
 WLET    = HOME + ".local/share/bitshares/bitshares.sqlite"
-LOGR    = HOME + "switcher.log"
+LOGR    = HOME + "switcher.log"         # LOCATION OF LOG FILE
 FMT1    = "%(asctime)s %(message)s"     # Format for logging: template
 FMT2    = "%m/%d/%Y %H:%M:%S"           # Format for logging: date/time
 WURL    = ""                            # WITNESS PROPOSAL URL
@@ -25,7 +25,7 @@ PASS    = ""                            # WALLET PASSWORD FOR SQLite WALLET
 PKEY    = ""                            # PRIVATE ACTV KEY FOR WITNESS ACCOUNT
 FREQ    = 30                            # Missed block sample time in seconds
 FLIP    = 3                             # Threshold of missed blocks to switch
-RSET    = 240                           # Reset after this many good samples
+RSET    = 120                           # Reset after this many unmissed bloks
 LEVL    = logging.INFO                  # Set 2 logging.DEBUG for lots of data
 
 API_NODES   = [                         # API server node list
@@ -41,31 +41,30 @@ API_NODES   = [                         # API server node list
 # Array of alternative witness signing keys we'll switch to upon failure
 WITNESS_KEYS = [ "BTS1...",
                  "BTS2...",
-                 "BTS3..."
-    ]
+                 "BTS3..." ]
 
 # Setup the API instance we'll use
 API = BitShares(API_NODES, nobroadcast=False)
 # set_shared_bitshares_instance(API)       # Not sure what this could be for
 
-####################################################
-# End of constants and global variable definitions #
-####################################################
+##############################################################################
+#              End of constants and global variable definitions              #
+##############################################################################
 
 # Check how many blocks have been missed and switch signing keys if required
-def checkWitness(startMisses, loopCounter, counterOnLastMiss, previousMisses,
-                 nextKey):
+def checkWitness(args):
+    (nextKey,startMisses,counterOnLastMiss,previousMisses,loopCounter) = args
 
     status = Witness(ACNT)
     currentKey = status['signing_key']
     missed = status['total_missed']
 
-    print("\r%d samples, missed=%d(%d), key=%.16s..." %
-        (loopCounter, missed, counterOnLastMiss, currentKey), end='')
-
     if startMisses == -1:
         startMisses = previousMisses = missed
         counterOnLastMiss = loopCounter
+
+    print("\r%d samples, missed=%d(%d), key=%.16s..." %
+        (loopCounter, missed, counterOnLastMiss, currentKey), end='')
 
     if missed > previousMisses:
         counterOnLastMiss = loopCounter
@@ -93,7 +92,7 @@ def checkWitness(startMisses, loopCounter, counterOnLastMiss, previousMisses,
                 startMisses = -1  # Starting fresh, reset counters
                 nextKey = (nextKey + 1) % len(WITNESS_KEYS)
             else:
-                msg = "Signing key did not change! Will try again in " 
+                msg = "Signing key did not change! Will try again in "
                 msg += FREQ + " seconds"
                 print(msg)
                 logging.info(msg)
@@ -102,6 +101,7 @@ def checkWitness(startMisses, loopCounter, counterOnLastMiss, previousMisses,
         if loopCounter - counterOnLastMiss >= RSET:
             startMisses = -1
 
+    loopCounter += 1
     return (startMisses,loopCounter,counterOnLastMiss,previousMisses,nextKey)
 
 
@@ -144,7 +144,7 @@ def openWallet(credentials):
             if input(prompt).lower() == 'y':
                  doit = input("Are you REALLY sure?") # Get confirmation first
                  if doit.lower() == 'y':
-                     # Should backup old wallet - copy SQLite file?
+                     # TODO: Should backup old wallet - copy SQLite file?
                      print("\nSorry, I can't remove old wallet state now.")
                      print("You will need to manage the wallet externally.")
                      print("Instead delete %s and run this again." % WLET)
@@ -174,14 +174,14 @@ def openWallet(credentials):
 # Get witness account name if not defined above in constants
 def getWitnessAccountName(name):
     while not name:
-        name = input("Please enter your witness account name: ")
+        name = input("Please enter your witness account name: ").lower()
         try:
             account = Account(name)
-        except: # This will NOT CATCH AccountDoesNotExistsException
+        except: # TODO: Fix so this catches AccountDoesNotExistsException
             print("That isn't a valid account!")
         else:
             if not account.is_ltm:
-                print("That doesn't appear to be a witness account!")
+                print("That is not a witness account!")
                 name = ""
     return name
 
@@ -196,10 +196,10 @@ if __name__ == "__main__":
     #  if user didn't add them to the constants defined above.
     credentials = openWallet( {'PASS':PASS, 'PKEY':PKEY} )
 
-    # Update these if user didn't define in constants
-    PASS  = credentials['PASS']     # Wallet password
-    PKEY  = credentials['PKEY']     # Witness private key
-    ACNT  = getWitnessAccountName(ACNT)  # Can't get from private key in wallet
+    # Update these if user didn't define them in constants
+    PASS  = credentials['PASS']         # Wallet password
+    PKEY  = credentials['PKEY']         # Witness private key
+    ACNT  = getWitnessAccountName(ACNT) # Can't get from private key in wallet
 
     # Set nextKey index based on signing key in use right now
     status = Witness(ACNT)
@@ -210,12 +210,11 @@ if __name__ == "__main__":
     startMisses = -1 # Set to -1 to reset / init
     previousMisses = status['total_missed']
     loopCounter = counterOnLastMiss = 0    # Initialize counters
+    args = (nextKey,startMisses,counterOnLastMiss,previousMisses,loopCounter)
 
     logging.info("Starting missed block monitoring for " + ACNT)
     while True:
-        checkWitness(startMisses, loopCounter, counterOnLastMiss,
-                     previousMisses, nextKey)
+        args = checkWitness(args)
+#        logging.info("nK=%d sM=%d colm=%d pM%d lC=%d" % args)
         sys.stdout.flush()
-        loopCounter += 1
         time.sleep(FREQ)
-
