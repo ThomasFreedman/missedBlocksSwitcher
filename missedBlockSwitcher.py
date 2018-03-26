@@ -83,32 +83,32 @@ def checkWitness():
     if missed > previousMisses:
         counterOnLastMiss = loopCounter
         delta = previousMisses - startMisses
-        msg = "\nMissed another block! (delta=%d)" % delta
-        print(msg)
+        msg = "Missed another block! (delta=%d)" % delta
+        print("\n", msg)
         logging.info(msg)
         previousMisses = missed
         if delta >= FLIP:
             # Flip witness to backup
             key = WITNESS_KEYS[nextKey]
             msg = "Time to switch! (next key: %s)" % key
-            print(msg)
+            print("\n", msg)
             logging.info(msg)
-            API.wallet.unlock(walletpwd)
-            API.update_witness(witness, url=witnessurl, key=key)
+            API.wallet.unlock(PASS)
+            API.update_witness(ACNT, url=WURL, key=key)
             time.sleep(6) # Wait 2 block times before trying to confirm switch
 
             status = Witness(ACNT)
             if currentKey != status['signing_key']:
                 currentKey = status['signing_key']
                 msg = "Witness updated. Now using " + currentKey
-                print(msg)
+                print("\n", msg)
                 logging.info(msg)
                 startMisses = -1  # Starting fresh, reset counters
                 nextKey = (nextKey + 1) % len(WITNESS_KEYS)
             else:
                 msg = "Signing key did not change! Will try again in "
                 msg += FREQ + " seconds"
-                print(msg)
+                print("\n", msg)
                 logging.info(msg)
     else:
         # If we haven’t missed any for awhile reset the counters
