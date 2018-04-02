@@ -86,7 +86,6 @@ def checkWitness():
         msg = "Missed another block! (delta=%d)" % delta
         print("\n", msg)
         logging.info(msg)
-        previousMisses = missed
         if delta >= FLIP:
             # Flip witness to backup
             key = WITNESS_KEYS[nextKey]
@@ -107,7 +106,7 @@ def checkWitness():
                 nextKey = (nextKey + 1) % len(WITNESS_KEYS)
             else:
                 msg = "Signing key did not change! Will try again in "
-                msg += FREQ + " seconds"
+                msg += str(FREQ) + " seconds"
                 print("\n", msg)
                 logging.info(msg)
     else:
