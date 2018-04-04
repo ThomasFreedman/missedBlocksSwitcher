@@ -85,7 +85,7 @@ def checkWitness():
         if previousMisses != -1:    # Switch failure?
             counterOnLastMiss = loopCounter     # No.
             delta = previousMisses - startMisses
-            previousMisses = misses
+            previousMisses = missed
             msg = "Missed another block! (delta=%d)" % delta
             print("\n", msg)
             logging.info(msg)
