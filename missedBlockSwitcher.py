@@ -47,7 +47,7 @@ WITNESS_KEYS = [ "BTS1...",
 API = BitShares(API_NODES, nobroadcast=False)
 # set_shared_bitshares_instance(API)       # Not sure what this could be for
 
-global startMisses, nextKey, previousMisses, loopCounter, counterOnLastMiss
+global startMisses, nextIdx, previousMisses, loopCounter, counterOnLastMiss
 ##############################################################################
 #              End of constants and global variable definitions              #
 ##############################################################################
@@ -63,7 +63,7 @@ global startMisses, nextKey, previousMisses, loopCounter, counterOnLastMiss
 startMisses = -1
 def checkWitness():
     # Define and initialize the "static" variables we need to persist
-    global startMisses,nextKey,previousMisses,loopCounter,counterOnLastMiss
+    global startMisses,nextIdx,previousMisses,loopCounter,counterOnLastMiss
 
     status = Witness(ACNT)
     missed = status['total_missed']
@@ -73,40 +73,47 @@ def checkWitness():
     if startMisses == -1:
         startMisses = previousMisses = missed
         counterOnLastMiss = loopCounter = 0
-        for key in range(len(WITNESS_KEYS)):
-            if currentKey == WITNESS_KEYS[key]:
-                nextKey = (key + 1) % len(WITNESS_KEYS)
+        keyCount = len(WITNESS_KEYS)
+        for k in range(keyCount):
+            if currentKey == WITNESS_KEYS[k]:
+                nextIdx = (k + 1) % keyCount
 
     print("\r%d samples, missed=%d(%d), key=%.16s..." %
         (loopCounter, missed, counterOnLastMiss, currentKey), end='')
 
     if missed > previousMisses:
-        counterOnLastMiss = loopCounter
-        delta = previousMisses - startMisses
-        msg = "Missed another block! (delta=%d)" % delta
-        print("\n", msg)
-        logging.info(msg)
-        if delta >= FLIP:
-            # Flip witness to backup
-            key = WITNESS_KEYS[nextKey]
-            msg = "Time to switch! (next key: %s)" % key
+        if previousMisses != -1:    # Switch failure?
+            counterOnLastMiss = loopCounter     # No.
+            delta = previousMisses - startMisses
+            previousMisses = misses
+            msg = "Missed another block! (delta=%d)" % delta
             print("\n", msg)
             logging.info(msg)
-            API.wallet.unlock(PASS)
-            API.update_witness(ACNT, url=WURL, key=key)
-            time.sleep(6) # Wait 2 block times before trying to confirm switch
+        else:
+            msg = "Rebroadcasting switch to (%s)..." % key
+            print("\n", msg)
+            logging.info(msg)
 
-            status = Witness(ACNT)
-            if currentKey != status['signing_key']:
-                currentKey = status['signing_key']
-                msg = "Witness updated. Now using " + currentKey
+        if delta >= FLIP:
+            key = WITNESS_KEYS[nextIdx]
+            if previousMisses != -1:
+                msg = "Time to switch! (next key: %s)" % key
                 print("\n", msg)
                 logging.info(msg)
-                startMisses = -1  # Starting fresh, reset counters
-                nextKey = (nextKey + 1) % len(WITNESS_KEYS)
+            # Flip witness to a backup
+            API.wallet.unlock(PASS)
+            API.update_witness(ACNT, url=WURL, key=key)
+            time.sleep(9) # Wait 3 block times before trying to confirm switch
+
+            if Witness(ACNT)['signing_key'] == key:
+                msg = "Witness updated. Now using " + key
+                print("\n", msg)
+                logging.info(msg)
+                startMisses = -1    # Starting fresh, reset all counters
             else:
                 msg = "Signing key did not change! Will try again in "
                 msg += str(FREQ) + " seconds"
+                previousMisses = -1 # This will flag a retry
                 print("\n", msg)
                 logging.info(msg)
     else:
@@ -129,7 +136,7 @@ def get_secret_input(prompt):
     while not secret:
         print(prompt)
         in1 = getpass()
-        print("Enter it again to verify.")
+        print("Enter it again to verify> ")
         in2 = getpass()
         if in1 == in2:
             secret = in1
@@ -153,16 +160,18 @@ def openWallet(credentials):
             API.wallet.unlock(pw)
         except:
             print("A wallet exists but the password won't unlock it.")
-            prompt= "Create a new wallet with the password you entered (y/n)?"
+            prompt= "Create a new wallet with the password provided (y/n)?> "
             if input(prompt).lower() == 'y':
-                 doit = input("Are you REALLY sure?") # Get confirmation first
+                 doit = input("Are you REALLY sure?> ") # Get confirmation 1st
                  if doit.lower() == 'y':
-                     # TODO: Should backup old wallet - copy SQLite file?
-                     print("\nSorry, I can't remove old wallet state now.")
-                     print("You will need to manage the wallet externally.")
-                     print("Instead delete %s and run this again." % WLET)
-#                    API.wallet.wipe(sure=True)  # May not work yet
-                     exit(-1)  # Fix this when wipe() clears 'wallet exists'
+                     # TODO: Make a backup of old wallet before wiping
+                     try:
+                         API.wallet.wipe(sure=True)
+                     except:
+                         print("\nAn error occurred removing the old wallet.")
+                         print("You can delete %s and rerun this, or" % WLET)
+                         print("manage the wallet manually & externally")
+                         exit(-1)
             else:
                 print("Ok, sorry it didn't work out. Bye!")
                 exit(-1)
@@ -172,7 +181,7 @@ def openWallet(credentials):
             print("No wallet exists! Creating one now...")
             API.wallet.newWallet(pw)
             API.wallet.unlock(pw)
-            prompt = "Please enter the private key for your witness account"
+            prompt = "Please enter the private key for your witness account> "
             if not pKey:
                 pKey = get_secret_input(prompt)
                 credentials['PKEY'] = pKey
@@ -184,10 +193,11 @@ def openWallet(credentials):
     return(credentials)
 
 
+
 # Get witness account name if not defined above in constants
 def getWitnessAccountName(name):
     while not name:
-        name = input("Please enter your witness account name: ").lower()
+        name = input("Please enter your witness account name> ").lower()
         try:
             account = Account(name)
         except: # TODO: Fix so this catches AccountDoesNotExistsException
